@@ -49,8 +49,8 @@ object ProjectBuild extends Build {
 
 object Configuration {
 
-  val commonVersion = "0.2.19"
-  val projectScalaVersion = "2.11.7"
+  val commonVersion = "0.2.19-DRIP-1"
+  val projectScalaVersion = "2.11.8"
   val specs2Version = "2.5"
 
   val specs2Dependency = "org.specs2" %% "specs2-core" % specs2Version % "test"
@@ -58,6 +58,7 @@ object Configuration {
   val logbackDependency = "ch.qos.logback" % "logback-classic" % "1.1.6" % "test"
 
   val commonDependencies = Seq(
+    "com.google.guava" % "guava" % "19.0",
     "org.slf4j" % "slf4j-api" % "1.7.18",
     "joda-time" % "joda-time" % "2.9.2",
     "org.joda" % "joda-convert" % "1.8.1",
@@ -81,8 +82,8 @@ object Configuration {
         :+ "-feature"
     ,
     scalacOptions in doc := Seq("-doc-external-doc:scala=http://www.scala-lang.org/archives/downloads/distrib/files/nightly/docs/library/"),
-    crossScalaVersions := Seq(projectScalaVersion, "2.10.6"),
-    javacOptions := Seq("-source", "1.6", "-target", "1.6", "-encoding", "UTF8"),
+    crossScalaVersions := Seq(projectScalaVersion),
+    javacOptions := Seq("-source", "1.8", "-target", "1.8", "-encoding", "UTF8"),
     organization := "com.github.mauricio",
     version := commonVersion,
     parallelExecution := false,

@@ -29,6 +29,7 @@ import com.github.mauricio.async.db.mysql.message.server._
 import com.github.mauricio.async.db.mysql.util.CharsetMapper
 import com.github.mauricio.async.db.util.ChannelFutureTransformer.toFuture
 import com.github.mauricio.async.db.util._
+import com.google.common.cache._
 import io.netty.bootstrap.Bootstrap
 import io.netty.buffer.{ByteBuf, ByteBufAllocator, Unpooled}
 import io.netty.channel._
@@ -59,8 +60,19 @@ class MySQLConnectionHandler(
   private final val sendLongDataEncoder = new SendLongDataEncoder()
   private final val currentParameters = new ArrayBuffer[ColumnDefinitionMessage]()
   private final val currentColumns = new ArrayBuffer[ColumnDefinitionMessage]()
-  private final val parsedStatements = new HashMap[String,PreparedStatementHolder]()
   private final val binaryRowDecoder = new BinaryRowDecoder()
+  private final val parsedStatements: Cache[String, PreparedStatementHolder] = CacheBuilder
+    .newBuilder()
+    .maximumSize(1024)
+    .expireAfterWrite(60, TimeUnit.SECONDS)
+    .removalListener(new RemovalListener[String, PreparedStatementHolder] {
+      def onRemoval(removal: RemovalNotification[String, PreparedStatementHolder]) {
+        log.debug("Closing preparestatement...")
+        closePreparedStatment(removal.getValue().statementId)
+      }
+    }
+  )
+  .build()
 
   private var currentPreparedStatementHolder : PreparedStatementHolder = null
   private var currentPreparedStatement : PreparedStatement = null
@@ -89,6 +101,10 @@ class MySQLConnectionHandler(
     }
 
     this.connectionPromise.future
+  }
+
+  private def closePreparedStatment(statementId: Array[Byte]) = {
+    writeAndHandleError(new PreparedStatementCloseMessage(statementId))
   }
 
   override def channelRead0(ctx: ChannelHandlerContext, message: Object) {
@@ -199,7 +215,7 @@ class MySQLConnectionHandler(
 
     this.currentPreparedStatement = preparedStatement
 
-    this.parsedStatements.get(preparedStatement.statement) match {
+    Option(this.parsedStatements.getIfPresent(preparedStatement.statement)) match {
       case Some( item ) => {
         this.executePreparedStatement(item.statementId, item.columns.size, preparedStatement.values, item.parameters)
       }
